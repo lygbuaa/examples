@@ -14,12 +14,13 @@
 
 #include <memory>
 #include <opencv2/opencv.hpp>
-#include "rclcpp/rclcpp.hpp"
+#include <rclcpp/rclcpp.hpp>
 #include "std_msgs/msg/string.hpp"
 #include "sensor_msgs/msg/image.hpp"
 #include "image_transport/image_transport.hpp"
 #include "cv_bridge/cv_bridge.h"
 #include "sensor_msgs/image_encodings.hpp"
+#include "logging_utils.h"
 
 using std::placeholders::_1;
 constexpr static char _IMAGE_TOPIC[] = "/carla/ego_vehicle/camera_svc_front/image";
@@ -31,14 +32,17 @@ public:
   CvBridgeDemo()  : Node("CvBridgeDemo")
   {
     subscription_ = this->create_subscription<sensor_msgs::msg::Image>(_IMAGE_TOPIC, 10, std::bind(&CvBridgeDemo::topic_callback, this, _1));
-    RCLCPP_INFO(this->get_logger(), "listening on %s", _IMAGE_TOPIC);
+    // RCLCPP_INFO(this->get_logger(), "listening on %s", _IMAGE_TOPIC);
+    RLOGI("listening on %s", _IMAGE_TOPIC);
   }
 
 private:
   void topic_callback(const sensor_msgs::msg::Image::SharedPtr msg) const
   {
     static int id = 0;
-    RCLCPP_INFO(this->get_logger(), "recv image [%d], w: %d, h: %d", id, msg->width, msg->height);
+    // RCLCPP_INFO(this->get_logger(), "recv image [%d], w: %d, h: %d", id, msg->width, msg->height);
+    RLOGI("recv image [%d], w: %d, h: %d", id, msg->width, msg->height);
+
     cv_bridge::CvImageConstPtr cv_ptr;
 
     try
@@ -47,7 +51,8 @@ private:
     }
     catch (cv_bridge::Exception& e)
     {
-        RCLCPP_ERROR(this->get_logger(), "cv_bridge exception: %s", e.what());
+        // RCLCPP_ERROR(this->get_logger(), "cv_bridge exception: %s", e.what());
+        RLOGE("cv_bridge exception: %s", e.what());
         return;
     }
 
@@ -61,10 +66,12 @@ private:
       }
       catch (cv::Exception& e)
       {
-          RCLCPP_ERROR(this->get_logger(), "cv::imwrite exception: %s", e.what());
+          // RCLCPP_ERROR(this->get_logger(), "cv::imwrite exception: %s", e.what());
+          RLOGE("cv::imwrite exception: %s", e.what());
           return;
       }
-      RCLCPP_INFO(this->get_logger(), "save image %s", filepath.c_str());
+      // RCLCPP_INFO(this->get_logger(), "save image %s", filepath.c_str());
+      RLOGI("save image %s", filepath.c_str());
     }
     id += 1;
   }
@@ -74,8 +81,13 @@ private:
 
 int main(int argc, char * argv[])
 {
+  _print_ros_env_();
   rclcpp::init(argc, argv);
-  rclcpp::spin(std::make_shared<CvBridgeDemo>());
+  _run_logger_test_();
+
+  rclcpp::Node::SharedPtr g_node = std::make_shared<CvBridgeDemo>();
+  RCLCPP_INFO(g_node->get_logger(), "you can also do logging with g_node->get_logger()");
+  rclcpp::spin(g_node);
   rclcpp::shutdown();
   return 0;
 }

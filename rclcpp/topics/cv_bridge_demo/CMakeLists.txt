@@ -18,6 +18,10 @@ find_package(image_transport REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(visualization_msgs REQUIRED)
 
+include_directories(
+  ${PROJECT_SOURCE_DIR}/inc
+)
+
 add_executable(cv_bridge_demo_bin main.cpp)
 ament_target_dependencies(cv_bridge_demo_bin 
   rclcpp 

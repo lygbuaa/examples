@@ -6,5 +6,8 @@ def generate_launch_description():
         launch_ros.actions.Node(
             package='cv_bridge_demo',
             executable='cv_bridge_demo_bin',
-            name='demo_name'),
+            name='demo_name',
+            # log-level: DEBUG/INFO/WARN/ERROR/FATAL, do `colcon build` before launch.
+            arguments=['--ros-args', '--log-level', 'INFO']
+        ),
   ])
