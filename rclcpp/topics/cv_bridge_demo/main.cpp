@@ -23,7 +23,8 @@
 #include "logging_utils.h"
 
 using std::placeholders::_1;
-constexpr static char _IMAGE_TOPIC[] = "/carla/ego_vehicle/camera_svc_front/image";
+constexpr static char _SUB_IMAGE_TOPIC[] = "/carla/ego_vehicle/camera_svc_front/image";
+constexpr static char _PUB_IMAGE_TOPIC[] = "/image_pub";
 constexpr static char _OUTPUT_PATH[] = "/home/hugoliu/github/colcon_ws/examples/output/";
 
 class CvBridgeDemo : public rclcpp::Node
@@ -31,9 +32,10 @@ class CvBridgeDemo : public rclcpp::Node
 public:
   CvBridgeDemo()  : Node("CvBridgeDemo")
   {
-    subscription_ = this->create_subscription<sensor_msgs::msg::Image>(_IMAGE_TOPIC, 10, std::bind(&CvBridgeDemo::topic_callback, this, _1));
-    // RCLCPP_INFO(this->get_logger(), "listening on %s", _IMAGE_TOPIC);
-    RLOGI("listening on %s", _IMAGE_TOPIC);
+    publisher_ = this->create_publisher<sensor_msgs::msg::Image>(_PUB_IMAGE_TOPIC, 10);
+    subscription_ = this->create_subscription<sensor_msgs::msg::Image>(_SUB_IMAGE_TOPIC, 10, std::bind(&CvBridgeDemo::topic_callback, this, _1));
+    // RCLCPP_INFO(this->get_logger(), "listening on %s", _SUB_IMAGE_TOPIC);
+    RLOGI("listening on %s", _SUB_IMAGE_TOPIC);
   }
 
 private:
@@ -41,7 +43,8 @@ private:
   {
     static int id = 0;
     // RCLCPP_INFO(this->get_logger(), "recv image [%d], w: %d, h: %d", id, msg->width, msg->height);
-    RLOGI("recv image [%d], w: %d, h: %d", id, msg->width, msg->height);
+    double t_sec = msg->header.stamp.sec + msg->header.stamp.nanosec * 1e-9;
+    RLOGI("recv image [%d], time: %.6f, w: %d, h: %d", id, t_sec, msg->width, msg->height);
 
     cv_bridge::CvImageConstPtr cv_ptr;
 
@@ -63,6 +66,8 @@ private:
       try
       {
         cv::imwrite(filepath.c_str(), img);
+        sensor_msgs::msg::Image::SharedPtr ptr = cv_bridge::CvImage(std_msgs::msg::Header(), "bgr8", img).toImageMsg();
+        publisher_->publish(*ptr.get());
       }
       catch (cv::Exception& e)
       {
@@ -77,17 +82,30 @@ private:
   }
 
   rclcpp::Subscription<sensor_msgs::msg::Image>::SharedPtr subscription_;
+  rclcpp::Publisher<sensor_msgs::msg::Image>::SharedPtr publisher_;
 };
 
 int main(int argc, char * argv[])
 {
+  for(int i = 0; i < argc; i++){
+      fprintf(stderr, "argv[%d] = %s\n", i, argv[i]);
+  }
+
   _print_ros_env_();
   rclcpp::init(argc, argv);
   _run_logger_test_();
+  
+  rclcpp::executors::MultiThreadedExecutor executor;
 
   rclcpp::Node::SharedPtr g_node = std::make_shared<CvBridgeDemo>();
   RCLCPP_INFO(g_node->get_logger(), "you can also do logging with g_node->get_logger()");
-  rclcpp::spin(g_node);
+
+  /* add all nodes into executor */
+  executor.add_node(g_node);
+  /* only spin one node */
+  // rclcpp::spin(g_node);
+  /* spin multi node */
+  executor.spin();
   rclcpp::shutdown();
   return 0;
 }
